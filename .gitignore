@@ -1,0 +1,65 @@
+# Environnements Python
+venv/
+.venv/
+env/
+ENV/
+
+# Fichiers Python générés
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Outils de packaging et tests
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+pip-wheel-metadata/
+share/python-wheels/
+.tox/
+.nox/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Données et artefacts de machine learning
+src/data/
+models/
+checkpoints/
+*.keras
+*.h5
+*.hdf5
+*.npz
+*.npy
+*.pkl
+*.pickle
+*.joblib
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Configuration locale et secrets
+.env
+.env.*
+!.env.example
+
+# Éditeurs et système
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Logs et fichiers temporaires
+*.log
+*.tmp
+*.temp
