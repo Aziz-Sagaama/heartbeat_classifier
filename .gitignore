@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Vite build output and cache
+dist/
+.vite/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# TypeScript build information
+*.tsbuildinfo
+
+# Logs
+*.log
+logs/
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

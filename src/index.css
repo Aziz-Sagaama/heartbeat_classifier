@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #e7f2f4; background: #071318; }
+body { margin: 0; min-width: 320px; background: radial-gradient(circle at 75% -10%, #123a43 0, transparent 32rem), #071318; }
+* { box-sizing: border-box; }
+button, input { font: inherit; }
+.glass { background: linear-gradient(135deg, rgba(20, 45, 54, .82), rgba(11, 27, 34, .82)); border: 1px solid rgba(123, 220, 222, .12); box-shadow: 0 20px 60px rgba(0,0,0,.18); }
+.grid-bg { background-image: linear-gradient(rgba(99, 203, 205, .045) 1px, transparent 1px), linear-gradient(90deg, rgba(99, 203, 205, .045) 1px, transparent 1px); background-size: 32px 32px; }
