@@ -32,7 +32,7 @@ htmlcov/
 
 # Données et artefacts de machine learning
 src/data/
-models/
+models/*
 checkpoints/
 *.keras
 *.h5
@@ -42,6 +42,10 @@ checkpoints/
 *.pkl
 *.pickle
 *.joblib
+
+# Exception : modèles nécessaires au déploiement (doit rester APRÈS les règles ci-dessus)
+!models/binary_stratified/
+!models/binary_stratified/*.keras
 
 # Jupyter
 .ipynb_checkpoints/
