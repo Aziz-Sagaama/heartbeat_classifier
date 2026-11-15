@@ -1,81 +1,142 @@
 
 import numpy as np
-from sklearn.model_selection import StratifiedGroupKFold
-from sklearn.preprocessing import LabelEncoder
+from pathlib import Path
 from collections import Counter
+from sklearn.model_selection import GroupShuffleSplit
 
-# Load segmented heartbeat dataset
-data = np.load("src/data/heartbeats.npz")
+DATA_DIR = Path("src/data/processed")
+INPUT_FILE = DATA_DIR / "mitbih_dataset.npz"
 
-X = data["X"]
-y = data["y"]
-groups = data["groups"]
+DS1 = [
+    "101", "106", "108", "109", "112", "114", "115", "116",
+    "118", "119", "122", "124", "201", "203", "205", "207",
+    "208", "209", "215", "220", "223", "230"
+]
 
-# Encode classes into numbers
-encoder = LabelEncoder()
-y_encoded = encoder.fit_transform(y)
+DS2 = [
+    "100", "103", "105", "111", "113", "117", "121", "123",
+    "200", "202", "210", "212", "213", "214", "219", "221",
+    "222", "228", "231", "232", "233", "234"
+]
 
-print("Class encoding:", dict(zip(encoder.classes_, encoder.transform(encoder.classes_))))
-
-# Split by recording, not by individual heartbeat
-# Split by recording while balancing class distributions
-splitter = StratifiedGroupKFold(
-    n_splits=5,
-    shuffle=True,
-    random_state=42
-)
-
-train_idx, test_idx = next(
-    splitter.split(X, y_encoded, groups)
-)
+CLASS_TO_ID = {"N": 0, "S": 1, "V": 2, "F": 3}
+RANDOM_STATE = 42
+VALIDATION_SIZE = 0.20
 
 
+def show_distribution(name, y):
+    print(f"\n{name}: {len(y)} beats")
+    for cls in range(4):
+        count = np.sum(y == cls)
+        print(f"{['N', 'S', 'V', 'F'][cls]}: {count}")
 
-X_train = X[train_idx]
-X_test = X[test_idx]
 
-y_train = y_encoded[train_idx]
-y_test = y_encoded[test_idx]
+def find_best_split(X, y, groups):
+    """Find a group-independent split with good class representation."""
+    splitter = GroupShuffleSplit(
+        n_splits=3000,
+        test_size=VALIDATION_SIZE,
+        random_state=RANDOM_STATE
+    )
 
-train_groups = groups[train_idx]
-test_groups = groups[test_idx]
+    total_counts = np.bincount(y, minlength=4)
+    best_score = float("inf")
+    best_indices = None
 
-# Normalize each heartbeat independently
-# Use training data statistics only
-mean = X_train.mean(axis=1, keepdims=True)
-std = X_train.std(axis=1, keepdims=True)
+    for train_idx, val_idx in splitter.split(X, y, groups):
+        train_counts = np.bincount(y[train_idx], minlength=4)
+        val_counts = np.bincount(y[val_idx], minlength=4)
 
-X_train = (X_train - mean) / (std + 1e-8)
+        if np.any(train_counts == 0) or np.any(val_counts[1:] < 10):
+            continue
 
-test_mean = X_test.mean(axis=1, keepdims=True)
-test_std = X_test.std(axis=1, keepdims=True)
+        # Each class should have approximately 20% in validation.
+        ratios = val_counts / total_counts
+        score = np.mean(np.abs(ratios - VALIDATION_SIZE))
 
-X_test = (X_test - test_mean) / (test_std + 1e-8)
+        if score < best_score:
+            best_score = score
+            best_indices = (train_idx, val_idx)
 
-# Add channel dimension for 1D CNN
-X_train = X_train[..., np.newaxis]
-X_test = X_test[..., np.newaxis]
+    if best_indices is None:
+        raise ValueError(
+            "Could not find a suitable validation split with at least "
+            "10 examples of each minority class. Check class distribution "
+            "across DS1 recordings."
+        )
 
-# Save prepared datasets
-np.savez_compressed(
-    "src/data/prepared_data.npz",
-    X_train=X_train,
-    X_test=X_test,
-    y_train=y_train,
-    y_test=y_test,
-    train_groups=train_groups,
-    test_groups=test_groups,
-    classes=encoder.classes_
-)
+    return best_indices
 
-print("\n===== DATA SPLIT RESULTS =====")
-print("Training shape:", X_train.shape)
-print("Testing shape:", X_test.shape)
 
-print("\nTraining classes:", Counter(y[train_idx]))
-print("Testing classes:", Counter(y[test_idx]))
 
-print("\nTraining recordings:", sorted(set(train_groups)))
-print("Testing recordings:", sorted(set(test_groups)))
 
-print("\nSaved: src/data/prepared_data.npz")
+def main():
+    data = np.load(INPUT_FILE, allow_pickle=True)
+
+    X = data["X"]
+    raw_y = data["y"].astype(str)
+    groups = data["groups"].astype(str)
+
+    unknown = set(raw_y) - set(CLASS_TO_ID)
+    if unknown:
+        raise ValueError(f"Unknown labels: {unknown}")
+
+    y = np.array([CLASS_TO_ID[label] for label in raw_y])
+
+    print("Original dataset:", X.shape)
+    show_distribution("Original distribution", y)
+
+    ds1_mask = np.isin(groups, DS1)
+    ds2_mask = np.isin(groups, DS2)
+
+    X_ds1, y_ds1 = X[ds1_mask], y[ds1_mask]
+    groups_ds1 = groups[ds1_mask]
+
+    X_test, y_test = X[ds2_mask], y[ds2_mask]
+
+    excluded_records = sorted(set(groups) - set(DS1) - set(DS2))
+
+    print("Excluded recordings:", excluded_records)
+    print("DS1 examples:", len(X_ds1))
+    print("DS2 examples:", len(X_test))
+
+    train_idx, val_idx = find_best_split(
+        X_ds1, y_ds1, groups_ds1
+    )
+
+    X_train, y_train = X_ds1[train_idx], y_ds1[train_idx]
+    X_val, y_val = X_ds1[val_idx], y_ds1[val_idx]
+
+    
+
+    train_records = set(groups_ds1[train_idx])
+    val_records = set(groups_ds1[val_idx])
+    test_records = set(groups[ds2_mask])
+
+    assert train_records.isdisjoint(val_records)
+    assert train_records.isdisjoint(test_records)
+    assert val_records.isdisjoint(test_records)
+
+    show_distribution("Balanced training", y_train)
+    show_distribution("Validation", y_val)
+    show_distribution("Test", y_test)
+
+    print("\nTraining records:", sorted(train_records))
+    print("Validation records:", sorted(val_records))
+    print("Test records:", sorted(test_records))
+
+    np.savez_compressed(
+        DATA_DIR / "final_splits.npz",
+        X_train=X_train,
+        y_train=y_train,
+        X_val=X_val,
+        y_val=y_val,
+        X_test=X_test,
+        y_test=y_test
+    )
+
+    print("\nSaved:", DATA_DIR / "final_splits.npz")
+
+
+if __name__ == "__main__":
+    main()

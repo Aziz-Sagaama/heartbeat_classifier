@@ -1,66 +1,35 @@
 
-from tensorflow import keras
-from tensorflow.keras import layers
+import tensorflow as tf
+from tensorflow.keras import layers, models
 
 
-def build_model(input_shape=(216, 1), num_classes=4):
-
-    model = keras.Sequential([
-
-        # Input
+def build_model(input_shape=(234, 1), num_classes=4):
+    model = models.Sequential([
         layers.Input(shape=input_shape),
 
-        # First convolution block
-        layers.Conv1D(
-            filters=32,
-            kernel_size=7,
-            activation="relu",
-            padding="same"
-        ),
+        layers.Conv1D(32, 7, padding="same", activation="relu"),
         layers.BatchNormalization(),
-        layers.MaxPooling1D(pool_size=2),
+        layers.MaxPooling1D(2),
 
-        # Second convolution block
-        layers.Conv1D(
-            filters=64,
-            kernel_size=5,
-            activation="relu",
-            padding="same"
-        ),
+        layers.Conv1D(64, 5, padding="same", activation="relu"),
         layers.BatchNormalization(),
-        layers.MaxPooling1D(pool_size=2),
+        layers.MaxPooling1D(2),
 
-        # Third convolution block
-        layers.Conv1D(
-            filters=128,
-            kernel_size=3,
-            activation="relu",
-            padding="same"
-        ),
+        layers.Conv1D(128, 3, padding="same", activation="relu"),
         layers.BatchNormalization(),
 
-        # Convert extracted features into a vector
         layers.GlobalAveragePooling1D(),
 
-        # Classification layers
-        layers.Dense(64, activation="relu"),
+        layers.Dense(128, activation="relu"),
         layers.Dropout(0.4),
 
-        # Four class probabilities
         layers.Dense(num_classes, activation="softmax")
     ])
 
     model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate=0.001),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
         loss="sparse_categorical_crossentropy",
         metrics=["accuracy"]
     )
 
     return model
-
-
-if __name__ == "__main__":
-
-    model = build_model()
-
-    model.summary()
